@@ -20,6 +20,7 @@
             --keyboard-bg: #f0f0f0;
             --key-bg: #fff;
             --key-shadow: rgba(0, 0, 0, 0.1);
+            --switch-bg: #e0e0e0;
         }
 
         [data-theme="dark"] {
@@ -33,6 +34,12 @@
             --keyboard-bg: #333;
             --key-bg: #2d2d2d;
             --key-shadow: rgba(0, 0, 0, 0.3);
+            --switch-bg: #444;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -54,6 +61,7 @@
 
         h2 {
             margin: 0;
+            font-size: 1.5rem;
         }
 
         .theme-switch {
@@ -76,7 +84,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: var(--switch-bg);
             transition: .4s;
             border-radius: 24px;
         }
@@ -120,6 +128,11 @@
             background-color: var(--input-bg);
             color: var(--text-color);
             font-size: 16px;
+            caret-color: transparent;
+        }
+
+        input:read-only {
+            background-color: var(--input-bg);
         }
 
         button {
@@ -132,6 +145,7 @@
             width: 100%;
             font-size: 16px;
             transition: background-color 0.3s;
+            margin-top: 10px;
         }
 
         button:hover {
@@ -190,6 +204,7 @@
             padding: 10px;
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             z-index: 1000;
+            transition: transform 0.3s ease;
         }
 
         .keyboard-row {
@@ -213,6 +228,7 @@
             cursor: pointer;
             user-select: none;
             box-shadow: 0 2px 4px var(--key-shadow);
+            transition: background-color 0.1s;
         }
 
         .keyboard-key:active {
@@ -232,17 +248,12 @@
             }
             
             input {
-                font-size: 16px; /* Увеличиваем размер шрифта для iOS */
-                padding: 14px; /* Увеличиваем отступы для удобства касания */
+                font-size: 16px;
+                padding: 14px;
             }
             
             .custom-keyboard {
-                display: block; /* Показываем кастомную клавиатуру на мобильных */
-            }
-            
-            /* Скрываем системную клавиатуру на iPad */
-            input[type="number"] {
-                caret-color: transparent;
+                display: block;
             }
         }
 
@@ -255,7 +266,22 @@
             .keyboard-key {
                 height: 40px;
                 margin: 0 3px;
+                font-size: 16px;
             }
+            
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .input-hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
         }
     </style>
 </head>
@@ -276,7 +302,8 @@
     
     <div class="input-group">
         <label for="total">Итоговая сумма:</label>
-        <input type="number" id="total" placeholder="Введите сумму (например, 185)" step="0.01" onfocus="showKeyboard(this)">
+        <input type="text" id="total" inputmode="none" readonly placeholder="Введите сумму (например, 185)" onfocus="showKeyboard(this)">
+        <div class="input-hint">Нажмите для ввода с виртуальной клавиатуры</div>
     </div>
     
     <div class="ratio-presets active" id="preset1">
@@ -294,7 +321,7 @@
     <div class="ratio-presets" id="preset3">
         <div class="input-group">
             <label for="custom-ratios">Введите свои пропорции (через запятую):</label>
-            <input type="text" id="custom-ratios" placeholder="Например: 10,30,90" onfocus="showKeyboard(this)">
+            <input type="text" id="custom-ratios" inputmode="none" readonly placeholder="Например: 10,30,90" onfocus="showKeyboard(this)">
         </div>
     </div>
     
@@ -341,6 +368,14 @@
         window.addEventListener('DOMContentLoaded', (event) => {
             loadSavedData();
             setupTheme();
+            
+            // Обработка клика вне поля ввода
+            document.addEventListener('click', function(event) {
+                if (activeInput && !event.target.closest('.custom-keyboard') && 
+                    event.target !== activeInput) {
+                    hideKeyboard();
+                }
+            });
         });
         
         function switchMode(mode) {
@@ -431,16 +466,19 @@
             activeInput = input;
             document.getElementById('custom-keyboard').style.display = 'block';
             
-            // Для iOS устройств предотвращаем появление системной клавиатуры
+            // Прячем системную клавиатуру на iOS
             if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-                input.readOnly = true;
+                input.setAttribute('readonly', 'readonly');
+                setTimeout(() => {
+                    input.blur();
+                }, 0);
             }
         }
         
         function hideKeyboard() {
             document.getElementById('custom-keyboard').style.display = 'none';
             if (activeInput) {
-                activeInput.readOnly = false;
+                activeInput.removeAttribute('readonly');
                 activeInput.blur();
             }
             activeInput = null;
@@ -462,7 +500,9 @@
             
             // Устанавливаем позицию курсора после вставленного символа
             const newPosition = start + key.length;
-            activeInput.setSelectionRange(newPosition, newPosition);
+            setTimeout(() => {
+                activeInput.setSelectionRange(newPosition, newPosition);
+            }, 0);
             
             // Сохраняем данные при изменении
             saveData();
@@ -478,11 +518,15 @@
             if (start === end && start > 0) {
                 // Удаляем один символ перед курсором
                 activeInput.value = value.substring(0, start - 1) + value.substring(end);
-                activeInput.setSelectionRange(start - 1, start - 1);
+                setTimeout(() => {
+                    activeInput.setSelectionRange(start - 1, start - 1);
+                }, 0);
             } else if (start !== end) {
                 // Удаляем выделенный текст
                 activeInput.value = value.substring(0, start) + value.substring(end);
-                activeInput.setSelectionRange(start, start);
+                setTimeout(() => {
+                    activeInput.setSelectionRange(start, start);
+                }, 0);
             }
             
             // Сохраняем данные при изменении
@@ -533,14 +577,6 @@
                 document.getElementById('custom-ratios').value = data.customRatios || '';
             }
         }
-        
-        // Закрываем клавиатуру при клике вне поля ввода
-        document.addEventListener('click', function(event) {
-            if (activeInput && !event.target.closest('.custom-keyboard') && 
-                event.target !== activeInput) {
-                hideKeyboard();
-            }
-        });
     </script>
 </body>
 </html>
