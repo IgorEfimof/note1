@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon197.png">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="KST">
+    <meta name="apple-mobile-web-app-title" content="KST1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Калькулятор пропорций</title>
     <style>
@@ -435,6 +435,15 @@
             document.querySelectorAll('.ratio-presets').forEach((el, index) => {
                 el.classList.toggle('active', index === mode);
             });
+            
+            // Автоматически активируем поле ввода пропорций в режиме "Свои"
+            if (mode === 2) {
+                setTimeout(() => {
+                    const customRatiosInput = document.getElementById('custom-ratios');
+                    customRatiosInput.focus();
+                    showKeyboard(customRatiosInput);
+                }, 100);
+            }
             
             // Сохраняем выбранный режим
             saveData();
