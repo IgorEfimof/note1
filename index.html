@@ -21,6 +21,8 @@
             --key-bg: #fff;
             --key-shadow: rgba(0, 0, 0, 0.1);
             --switch-bg: #e0e0e0;
+            --section-bg: #fff;
+            --section-border: #e0e0e0;
         }
 
         [data-theme="dark"] {
@@ -35,6 +37,8 @@
             --key-bg: #2d2d2d;
             --key-shadow: rgba(0, 0, 0, 0.3);
             --switch-bg: #444;
+            --section-bg: #2d2d2d;
+            --section-border: #444;
         }
 
         * {
@@ -283,6 +287,38 @@
             color: #888;
             margin-top: 4px;
         }
+        
+        /* Стили для разделения на две части */
+        .split-section {
+            background-color: var(--section-bg);
+            border: 1px solid var(--section-border);
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .split-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+        }
+        
+        .split-container {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .split-part {
+            flex: 1;
+        }
+        
+        @media (max-width: 480px) {
+            .split-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -300,10 +336,23 @@
         <div class="switch-option" onclick="switchMode(2)">Свои</div>
     </div>
     
-    <div class="input-group">
-        <label for="total">Итоговая сумма:</label>
-        <input type="text" id="total" inputmode="none" readonly placeholder="Введите сумму (например, 185)" onfocus="showKeyboard(this)">
-        <div class="input-hint">Нажмите для ввода с виртуальной клавиатуры</div>
+    <div class="split-section">
+        <h3>Итоговая сумма</h3>
+        <div class="split-container">
+            <div class="split-part">
+                <div class="input-group">
+                    <label for="total">Общая сумма:</label>
+                    <input type="text" id="total" inputmode="none" readonly placeholder="Например: 185" onfocus="showKeyboard(this)">
+                </div>
+            </div>
+            <div class="split-part">
+                <div class="input-group">
+                    <label for="multiplier">Коэффициент:</label>
+                    <input type="text" id="multiplier" inputmode="none" readonly placeholder="Например: 1.5" value="1" onfocus="showKeyboard(this)">
+                </div>
+            </div>
+        </div>
+        <div class="input-hint">Общая сумма распределяется по пропорциям, затем умножается на коэффициент</div>
     </div>
     
     <div class="ratio-presets active" id="preset1">
@@ -394,6 +443,7 @@
         function calculate() {
             // Получаем значения из полей ввода
             const total = parseFloat(document.getElementById('total').value);
+            const multiplier = parseFloat(document.getElementById('multiplier').value) || 1;
             
             // Проверяем, что поле заполнено
             if (isNaN(total)) {
@@ -406,11 +456,11 @@
             if (currentMode === 0) {
                 // Режим 10:30:90
                 ratios = [10, 30, 90];
-                calculateAndDisplayResult(total, ratios, "10 : 30 : 90");
+                calculateAndDisplayResult(total, multiplier, ratios, "10 : 30 : 90");
             } else if (currentMode === 1) {
                 // Режим 10:20:30:60:120
                 ratios = [10, 20, 30, 60, 120];
-                calculateAndDisplayResult(total, ratios, "10 : 20 : 30 : 60 : 120");
+                calculateAndDisplayResult(total, multiplier, ratios, "10 : 20 : 30 : 60 : 120");
             } else {
                 // Пользовательский режим
                 const customRatiosInput = document.getElementById('custom-ratios').value;
@@ -430,31 +480,46 @@
                     return;
                 }
                 
-                calculateAndDisplayResult(total, ratios, customRatiosInput.replace(/,/g, " : "));
+                calculateAndDisplayResult(total, multiplier, ratios, customRatiosInput.replace(/,/g, " : "));
             }
             
             // Сохраняем данные
             saveData();
         }
         
-        function calculateAndDisplayResult(total, ratios, ratioText) {
+        function calculateAndDisplayResult(total, multiplier, ratios, ratioText) {
             const sumRatios = ratios.reduce((a, b) => a + b, 0);
             const k = total / sumRatios;
             
+            // Рассчитываем значения по пропорциям
             const values = ratios.map(ratio => Math.round(ratio * k * 100) / 100);
             const sumValues = values.reduce((a, b) => a + b, 0);
             
+            // Применяем коэффициент умножения
+            const multipliedValues = values.map(value => Math.round(value * multiplier * 100) / 100);
+            const sumMultipliedValues = multipliedValues.reduce((a, b) => a + b, 0);
+            
             let resultHTML = `
                 <strong>Пропорции:</strong> ${ratioText}<br>
-                <strong>Итоговая сумма:</strong> ${total}<br><br>
-                <strong>Результат:</strong><br>
+                <strong>Итоговая сумма:</strong> ${total}<br>
+                <strong>Коэффициент:</strong> ${multiplier}<br><br>
+                <strong>Результат (до применения коэффициента):</strong><br>
             `;
             
             values.forEach((value, index) => {
                 resultHTML += `• ${ratios[index]} → ${value}<br>`;
             });
             
-            resultHTML += `<br><strong>Проверка:</strong> ${values.join(' + ')} = ${sumValues.toFixed(2)}`;
+            resultHTML += `<br><strong>Результат (после применения коэффициента):</strong><br>`;
+            
+            multipliedValues.forEach((value, index) => {
+                resultHTML += `• ${ratios[index]} → ${value}<br>`;
+            });
+            
+            resultHTML += `
+                <br><strong>Проверка пропорций:</strong> ${values.join(' + ')} = ${sumValues.toFixed(2)}<br>
+                <strong>Проверка с коэффициентом:</strong> ${multipliedValues.join(' + ')} = ${sumMultipliedValues.toFixed(2)}
+            `;
             
             // Выводим результат
             document.getElementById('resultText').innerHTML = resultHTML;
@@ -557,6 +622,7 @@
             const data = {
                 mode: currentMode,
                 total: document.getElementById('total').value,
+                multiplier: document.getElementById('multiplier').value,
                 customRatios: document.getElementById('custom-ratios').value
             };
             
@@ -574,6 +640,7 @@
                 
                 // Восстанавливаем значения полей
                 document.getElementById('total').value = data.total || '';
+                document.getElementById('multiplier').value = data.multiplier || '1';
                 document.getElementById('custom-ratios').value = data.customRatios || '';
             }
         }
